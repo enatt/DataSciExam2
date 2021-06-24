@@ -1,8 +1,8 @@
 ---
 title: "Exam Submission"
 author: "Echo"
-date: "6/20/2021"
-output: html_document
+date: "6/24/2021"
+output: word_document
 ---
 
 ```{r setup, include=FALSE}
