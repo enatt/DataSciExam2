@@ -1,28 +1,149 @@
 ---
-title: "Exam Submission"
-author: "Echo"
-date: "6/24/2021"
+title: "Exam 2 Submission"
+author: "Echo Nattinger"
+date: "6/28/2021"
 output: word_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+## College Scorecard Questions
+
+```{r setup}
+# Clearing the environment and loading the dataset
+rm(list=ls(all=TRUE))
+library(rio)
+college_scorecard = import("2021_exam2_data.xlsx", which=4)
+# Providing summary statistics
+summary(college_scorecard)
 ```
 
-## R Markdown
-
-I'm testing that this will work for my exam submission!
-
-```{r cars}
-summary(cars)
+```{r}
+# Creating smaller dataset
+library(tidyverse)
+small_scorecard = college_scorecard%>%
+  filter(year == 2014 | year == 2015)%>%
+  filter(state_abbr == "TX" | state_abbr == "LA")
+  
 ```
 
-## Including Plots
+```{r}
+# Collapsing into smaller dataframe
+# First have to get rid of NAs in count_working
+small_scorecard_no_NA = small_scorecard %>% na.omit(small_scorecard$count_working)
+even_smaller_scorecard = small_scorecard_no_NA %>%
+  group_by(state_abbr)%>%
+  summarize(avwork = mean(count_working), 
+            totalworking = sum(count_working))
 
-You can also embed plots, for example:
+# Graphing
+library(ggplot2)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+ggplot(even_smaller_scorecard, aes(state_abbr, totalworking/sum(totalworking)))+
+  geom_col(stat="identify")+
+  labs(title="Share of Employment by Employee's College State", 
+       x="State", 
+       y="Percentage of Total Employment")
+
+summary(even_smaller_scorecard)
+table(small_scorecard_no_NA$state_abbr)
+
+```
+On the basis of this graph, people who graduated from four-year colleges/universities in Texas had a better change of being employed. I do think going to college in certain states could give a student a better chance of employment, but I don't think that's what this graph proves. The average number of people working from each state is relatively close (2479 and 2207 for LA and TX respectively). Further, TX has way more schools in this dataset than LA.
+
+## Avocado Sales
+```{r}
+# Loading dataset
+avocados = import("2021_exam2_data.xlsx", which=2)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+# Creating new variable
+library(lubridate)
+avocados = avocados%>%
+  mutate(year = lubridate::year(avocados$date))
+```
+
+```{r}
+# Deflating
+library(WDI)
+# loading deflator data and renaming it for ease
+deflatordata = WDI(country="US", indicator=c("NY.GDP.DEFL.ZS"), 
+                   start=1960, end=2018, extra=FALSE, cache=NULL)
+library(data.table)
+setnames(deflatordata, "NY.GDP.DEFL.ZS", "deflator")
+deflatordata$country = NULL
+deflatordata$iso2c = NULL
+# Merging
+deflatedavocados = left_join(avocados, deflatordata, by=c("year"))
+
+# Creating deflated amounts
+deflatedavocados$deflated_price_2015 = deflatedavocados$average_price/(deflatedavocados$deflator/100)
+
+```
+
+```{r}
+# Collapsing deflatedavocados
+collapsed_avocados = deflatedavocados%>%
+  group_by(year)%>%
+  summarize(avdeflatedprice = mean(deflated_price_2015))
+
+head(collapsed_avocados)
+```
+
+```{r}
+# Reshaping the data
+wide_avocados = collapsed_avocados%>%
+  pivot_wider(id_cols = "year", 
+              names_from = "year", 
+              values_from = "avdeflatedprice" )
+head(wide_avocados)
+```
+
+```{r}
+# Labeling variables in wide_avocados
+library(labelled)
+var_label(wide_avocados) = list(`2015` = "Year 2015", 
+                                `2016` = "Year 2016", 
+                                `2017` = "Year 2017", 
+                                `2018` = "Year 2018")
+```
+
+## Training Dataset
+```{r}
+# Loading dataset
+training = import("2021_exam2_data.xlsx", which=3)
+# Creating ID variable
+training$id = 1:nrow(training)
+# Reshaping
+traininglong = training%>%
+  pivot_longer(cols = starts_with("re"), 
+              names_to = NULL, 
+             values_to= "earnings",
+             values_drop_na = FALSE)
+# Summary
+summary(traininglong)
+```
+
+## Titanic Questions
+```{r}
+# Loading dataset and providing summary statistics
+titanic = import("2021_exam2_data.xlsx", which=1)
+summary(titanic)
+```
+
+```{r}
+# Crosstabs
+library(doBy)
+summaryBy(survived ~ female, data = titanic, FUN=mean)
+```
+
+The results of this cross-tab show that those who are female (female=1) were less likely than their male counterparts to survive (with a mean of 0.21 compared to 0.73 for men).
+
+```{r}
+# If else and frequency table
+titanic$first_class = ifelse(titanic$class == 1, 1, 0)
+table(titanic$first_class)
+```
+
+Bonus: "My Heart Will Go On" by Celine Dion
+
+Github link: <https://github.com/enatt/DataSciExam2>
